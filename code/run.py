@@ -8,8 +8,8 @@ sys.path.append(project_root)
 
 # Parse command line arguments
 parser = argparse.ArgumentParser(description='Run Perplexia AI Assistant')
-parser.add_argument('--week', type=int, choices=[1, 2, 3], default=1, 
-                    help='Which week to run (1, 2, or 3)')
+parser.add_argument('--week', type=str, choices=['project'], default='project', 
+                    help="type project to be able to run the project ('project')")
 parser.add_argument('--mode', type=str, choices=['part1', 'part2', 'part3'], 
                     default='part1', help='Which part of the selected week to run')
 parser.add_argument('--solution', action='store_true',
@@ -20,5 +20,8 @@ args = parser.parse_args()
 from perplexia_ai.app import create_demo
 
 if __name__ == "__main__":
-    demo = create_demo(week=args.week, mode_str=args.mode, use_solution=args.solution)
+    # Convert week to int if it's '1', '2', or '3', else keep as string
+    week = args.week
+    
+    demo = create_demo(week=week, mode_str=args.mode, use_solution=args.solution)
     demo.launch()
