@@ -51,18 +51,60 @@ def create_demo(week: str = "project", mode_str: str = "part1", use_solution: bo
         }
         
         descriptions = {
-            "part1": "Your intelligent AI assistant that autonomously decides which tools to use.",
+            "part1": "Your intelligent AI agent that should be able to generate TF files based on user requirements.",
             "part2": "Your intelligent AI assistant that dynamically controls its search strategy.",
             "part3": "Your multi-agent research system that creates comprehensive research reports."
         }
         
         if mode_str == "part1":
             examples = [
-                ["Calculate 156 * 42"],
-                ["What's the current date?"],
-                ["What's the weather like in San Francisco?"],
-                ["If I have $85.60 and leave a 18% tip, how much will I pay in total?"]
-            ]
+                ["""
+                    Deploy a web server with:
+                    - Ubuntu 22.04 LTS
+                    - AWS EC2 t3.medium instance
+                    - In us-west-2 region
+                    - Open port 80 (HTTP) and 443 (HTTPS)
+                    - 20GB SSD storage
+                    - Basic security group
+                """],
+                ["""
+                    Deploy a MySQL database:
+                    - AWS RDS instance
+                    - Engine: MySQL 8.0
+                    - Instance class: db.t3.micro
+                    - Region: us-west-1
+                    - Database name: myapp_db
+                    - Username: admin
+                    - Storage: 20GB General Purpose SSD
+                    - Enable auto-backup (7 days retention)
+                    - Public access: No (private subnet only)
+                    - VPC: default VPC
+                    - Security group: Allow MySQL access from 10.0.1.0/24
+                    - Enable encryption at rest
+                    - Set backup window to 03:00-04:00 UTC
+                 """],
+                ["""
+                    Deploy a web application stack:
+                    - AWS region: us-east-1
+                    - VPC: Create new VPC with 2 subnets (public and private)
+                    - EC2 instance:
+                    - OS: Ubuntu 22.04 LTS
+                    - Type: t3.small
+                    - Public IP: Yes (for web access)
+                    - Security group: Allow HTTP (80) and SSH (22) from anywhere
+                    - RDS database:
+                    - Engine: MySQL 8.0
+                    - Instance: db.t3.micro
+                    - Database name: app_db
+                    - Username: admin
+                    - Private subnet only (no public access)
+                    - Storage: 50GB General Purpose SSD
+                    - Security group: Allow MySQL (3306) from EC2 security group
+                    - Networking:
+                    - EC2 and RDS must be able to communicate
+                    - SSH access to EC2 from my IP only
+                    - Tags: Environment=staging, Project=webapp
+                """]            ]
         elif mode_str == "part2":
             examples = [
                 ["What strategic goals did OPM outline in the 2022 report?"],

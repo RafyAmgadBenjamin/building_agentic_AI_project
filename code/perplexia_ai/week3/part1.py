@@ -15,12 +15,18 @@ from langchain.prompts import ChatPromptTemplate
 from langgraph.prebuilt import create_react_agent
 from datetime import datetime
 import os
+import json
 from langgraph.graph import StateGraph, MessagesState, START, END
 
 # Opik imports
 from opik import track
 from opik.integrations.langchain import OpikTracer
 import opik
+
+from perplexia_ai.week3.prompts import (
+    USER_REQUIREMENTS_VALIDATION_PROMPT,
+    TF_FILES_GENERATION_PROMPT,
+)
 
 
 class WorkflowState(MessagesState):
@@ -30,14 +36,16 @@ class WorkflowState(MessagesState):
     terraform_files_validation_errors: Optional[str]
     is_valid_user_requirements: bool
     user_requirements_validation_errors: Optional[str]
+    user_message: List[str]
+
 
 class ToolUsingAgentChat(ChatInterface):
     """Project iteration 1 implementation focusing on having full POC for generating infrastructure as code."""
-    
+
     def __init__(self):
-         # Initialize Opik client
-        self.opik_client = opik.Opik()
-        
+        # Initialize Opik client
+        # self.opik_client = opik.Opik()
+
         model_kwargs = {"model": "gpt-4o-mini"}
         # Get environment variables at runtime
         openai_api_key = os.getenv("OPENAI_API_KEY")
@@ -49,58 +57,58 @@ class ToolUsingAgentChat(ChatInterface):
             model_kwargs["base_url"] = openai_api_base
 
         # Create OpikTracer for LangChain integration
-        self.opik_tracer = OpikTracer()
+        # self.opik_tracer = OpikTracer()
         self.llm = init_chat_model(**model_kwargs)
 
         builder = StateGraph(WorkflowState)
         builder.add_node("validate_user_requirements", self._validate_user_requirements)
         builder.add_node("generate_terraform_files", self._generate_terraform_files)
-        builder.add_node("write_terraform_files_to_disk", self._write_terraform_files_to_disk)
+        builder.add_node(
+            "write_terraform_files_to_disk", self._write_terraform_files_to_disk
+        )
         builder.add_node("validate_terraform_files", self._validate_terraform_files)
 
         builder.add_edge(START, "validate_user_requirements")
         ## if user requirements are invalid, it will end the flow and pass the control to the user to refine the requirements
-        builder.add_conditional_edges("validate_user_requirements", 
-                                      self._route_after_requirements_validation,
-                                      mapping = {"generate_terraform_files": "generate_terraform_files",
-                                                  END: END}) 
+        builder.add_conditional_edges(
+            "validate_user_requirements",
+            self._route_after_requirements_validation,
+            {"generate_terraform_files": "generate_terraform_files", END: END},
+        )
 
         builder.add_edge("generate_terraform_files", "write_terraform_files_to_disk")
         builder.add_edge("write_terraform_files_to_disk", "validate_terraform_files")
 
-        builder.add_conditional_edges("validate_terraform_files", 
-                                      self._route_after_terraform_validation,
-                                      mapping={END: END, "generate_terraform_files": "generate_terraform_files"})
-        builder.add_edge("refine_user_requirements", END)
+        builder.add_conditional_edges(
+            "validate_terraform_files",
+            self._route_after_terraform_validation,
+            {END: END, "generate_terraform_files": "generate_terraform_files"},
+        )
         self.graph = builder.compile()
 
-
-
-    
     def initialize(self) -> None:
-        """Initialize components for the tool-using agent.
-        
-        Students should:
-        - Initialize the chat model
-        - Define tools for calculator, DateTime, and weather
-        - Create the ReAct agent using LangGraph
-        """
+        """Initialize components for the tool-using agent."""
         pass
-    
-    def process_message(self, message: str, chat_history: Optional[List[Dict[str, str]]] = None) -> str:
+
+    # @track(name="process_message", project_name="project_Iac_agent")
+    def process_message(
+        self, message: str, chat_history: Optional[List[Dict[str, str]]] = None
+    ) -> str:
         """Process a message using the tool-using agent.
-        
+
         Args:
             message: The user's input message
             chat_history: Previous conversation history
-            
+
         Returns:
             str: The assistant's response
         """
-        return "Not implemented yet. Please implement Week 3 Part 1: Tool-Using Agent."
+        result = self.graph.invoke({"user_input": message})
+        return result["user_requirements_validation_errors"]
 
-
-    def _validate_user_requirements(self, workflow_state: WorkflowState) -> WorkflowState:
+    def _validate_user_requirements(
+        self, workflow_state: WorkflowState
+    ) -> WorkflowState:
         """Validate user requirements in the workflow state using LLM.
 
         Args:
@@ -109,11 +117,31 @@ class ToolUsingAgentChat(ChatInterface):
         Returns:
             WorkflowState: The updated workflow state with validation results
         """
-        # Call LLM to validate user requirements
-        # Update workflow_state.is_valid_user_requirements
-        # add the validation errors to workflow_state.user_requirements_validation_errors
+        print("#### validating user requirements is called with this user input", workflow_state["user_input"])
+        formated_prompted = USER_REQUIREMENTS_VALIDATION_PROMPT.format_prompt(
+            USER_INPUT=workflow_state["user_input"]
+        )
+        print("formated_prompted", formated_prompted.text)
 
-        # Implement validation logic here
+        response = self.llm.invoke(formated_prompted.text)
+        print("#### llm response", response)
+        response_content = response.content.strip()
+        print("#### response content:", response_content)
+        
+        # TODO: hardening parsing logic to extract JSON from response
+        if "NOT_VALID" in response_content:
+            workflow_state["is_valid_user_requirements"] = False
+            workflow_state["user_requirements_validation_errors"] = response_content
+            workflow_state["user_message"] = response_content
+        elif "VALID" in response_content:
+            workflow_state["is_valid_user_requirements"] = True
+            workflow_state["user_requirements_validation_errors"] = ""
+            workflow_state["user_message"] = "Requirements are valid and ready for Terraform generation."
+        else:
+            raise ValueError("Unexpected response format from LLM.")
+
+
+            
         return workflow_state
 
     def _route_after_requirements_validation(self, workflow_state: WorkflowState):
@@ -125,7 +153,11 @@ class ToolUsingAgentChat(ChatInterface):
         Returns:
             bool: True if the user requirements are valid, False otherwise
         """
-        return "generate_terraform_files" if workflow_state["is_valid_user_requirements"] else END
+        return (
+            "generate_terraform_files"
+            if workflow_state["is_valid_user_requirements"]
+            else END
+        )
 
     def _route_after_terraform_validation(self, workflow_state: WorkflowState):
         """Control the routing condition for Terraform files validation.
@@ -136,9 +168,12 @@ class ToolUsingAgentChat(ChatInterface):
         Returns:
             bool: True if the Terraform files are valid, False otherwise
         """
-        return END if workflow_state["is_valid_terraform_files"] else "generate_terraform_files"
-         
-    
+        return (
+            END
+            if workflow_state["is_valid_terraform_files"]
+            else "generate_terraform_files"
+        )
+
     def _generate_terraform_files(self, workflow_state: WorkflowState) -> WorkflowState:
         """Generate Terraform files based on user requirements Using LLM.
 
@@ -149,9 +184,12 @@ class ToolUsingAgentChat(ChatInterface):
             WorkflowState: The updated workflow state with generated file paths
         """
         # Implement file generation logic here
+        print("#### generating terraform files is called with this user input", workflow_state["user_input"])
         return workflow_state
-    
-    def _write_terraform_files_to_disk(self, workflow_state: WorkflowState) -> WorkflowState:
+
+    def _write_terraform_files_to_disk(
+        self, workflow_state: WorkflowState
+    ) -> WorkflowState:
         """Write generated Terraform files to disk.
 
         Args:
@@ -162,7 +200,7 @@ class ToolUsingAgentChat(ChatInterface):
         """
         # Implement file writing logic here
         return workflow_state
-    
+
     def _validate_terraform_files(self, workflow_state: WorkflowState) -> WorkflowState:
         """Validate the generated Terraform files.
 
