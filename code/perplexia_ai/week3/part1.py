@@ -32,7 +32,7 @@ from perplexia_ai.week3.prompts import (
 class WorkflowState(MessagesState):
     user_input: str
     terraform_files_paths: List[str]
-    is_valid_terraform_fils: bool
+    is_valid_terraform_files: bool
     terraform_files_validation_errors: Optional[str]
     is_valid_user_requirements: bool
     user_requirements_validation_errors: Optional[str]
@@ -104,7 +104,7 @@ class ToolUsingAgentChat(ChatInterface):
             str: The assistant's response
         """
         result = self.graph.invoke({"user_input": message})
-        return result["user_requirements_validation_errors"]
+        return result["user_message"]
 
     def _validate_user_requirements(
         self, workflow_state: WorkflowState
