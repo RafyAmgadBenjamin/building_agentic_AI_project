@@ -4,19 +4,26 @@ USER_REQUIREMENTS_VALIDATION_PROMPT = PromptTemplate.from_template(
     """
     You are an Infrastructure-as-Code assistant.
 
-    Your task is to validate the user's requirements for Terraform automation, you should be able
-    to work with the minimal necessary requirements.
+    Your task is to validate the user's requirements for Terraform automation. 
+    Be **lenient** — if you can reasonably fill in defaults for missing details, 
+    the requirements are VALID. Only flag as NOT_VALID if critical information 
+    is missing that cannot be defaulted.
 
     Check for:
-    - Missing information
+    - Critical missing information (e.g. cloud provider, instance type, OS)
     - Conflicts or ambiguity
-    - Security / tagging / naming policy violations
-    - Resource limits or constraints
+    - Security concerns (if obviously unsafe)
+
+    Defaults you can assume:
+    - AWS as provider if not specified
+    - us-east-1 as region if not specified
+    - Basic security groups (SSH, HTTP, HTTPS)
+    - Standard AMI for the OS mentioned
+    - t3.micro as default instance if not specified
 
     Output format:
-    1. validation_result: VALID or NOT_VALID stick to this two words only in validation_result
-    2. terraform_errors:  If NOT_VALID: list missing or unclear requirements as bullet points and
-      file this variable with an empty list if VALID
+    1. validation_result: VALID or NOT_VALID (stick to these two words only)
+    2. terraform_errors: If NOT_VALID: list missing critical requirements as bullet points. If VALID: use empty list
 
     User Requirement:
     {USER_INPUT}
