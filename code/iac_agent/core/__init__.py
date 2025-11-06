@@ -1,1 +1,1 @@
-"""Core components for Perplexia AI.""" 
+"""Core components for Infrastructure as Code AI.""" 

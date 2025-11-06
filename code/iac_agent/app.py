@@ -42,15 +42,15 @@ def create_demo(week: str = "project", mode_str: str = "part1", use_solution: bo
         chat_interface.initialize()
         
         titles = {
-            "part1": f"Perplexia AI - Week 3: Tool-Using Agent ({code_type})",
-            "part2": f"Perplexia AI - Week 3: Agentic RAG ({code_type})",
-            "part3": f"Perplexia AI - Week 3: Deep Research ({code_type})"
+            "part1": "Infrastructure as Code AI - Iteration 1: IaC Agent",
+            "part2": "Infrastructure as Code AI - Iteration 2: Agentic RAG",
+            "part3": "Infrastructure as Code AI - Iteration 3: Deep Research"
         }
         
         descriptions = {
-            "part1": "Your intelligent AI agent that should be able to generate TF files based on user requirements.",
-            "part2": "Your intelligent AI assistant that dynamically controls its search strategy.",
-            "part3": "Your multi-agent research system that creates comprehensive research reports."
+            "part1": "Your intelligent AI assistant for generating Infrastructure as Code.",
+            "part2": "Your agentic RAG system that retrieves organizational information before generating IaC.",
+            "part3": "Your agentic RAG should has better performance and validate the terraform files to be ready for deployment"
         }
         
         if mode_str == "part1":
