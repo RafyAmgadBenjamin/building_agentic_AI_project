@@ -34,10 +34,14 @@ code/
 ## Usage
 
 1. **Install Dependencies**
-   - Required packages: `langchain`, `langgraph`, `opik`, and others as needed.
-   - Install with pip:
+   - This project uses [uv](https://docs.astral.sh/uv/) for fast, reliable Python package management.
+   - Install uv if you haven't already:
      ```bash
-     pip install langchain langgraph opik
+     curl -LsSf https://astral.sh/uv/install.sh | sh
+     ```
+   - Install project dependencies:
+     ```bash
+     uv sync
      ```
 
 2. **Configure API Keys**
@@ -50,9 +54,9 @@ code/
 3. **Run the Project**
    - Start the main application:
      ```bash
-     python run.py --week project --mode part1
+     uv run python code/run.py --week project --mode part1
      ```
-   - You can select different project iterations using the factory in `iac_agent/week3/factory.py`.
+   - You can select different project iterations using the factory in `iac_agent/agents/factory.py`.
 
 ## Project Iterations
 
@@ -73,4 +77,5 @@ MIT License
 ## Authors
 
 - Rafy Amgad Benjamin
+- Milad Afzal
 - Contributors welcome!
