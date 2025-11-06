@@ -38,9 +38,6 @@ def create_demo(week: str = "project", mode_str: str = "part1", use_solution: bo
         mode = mode_map[mode_str]
         chat_interface = create_chat(mode)
         
-        # Initialize the chat implementation (Week 3 requires explicit initialization)
-        chat_interface.initialize()
-        
         titles = {
             "part1": "Infrastructure as Code AI - Iteration 1: IaC Agent",
             "part2": "Infrastructure as Code AI - Iteration 2: Agentic RAG",
@@ -120,18 +117,25 @@ def create_demo(week: str = "project", mode_str: str = "part1", use_solution: bo
         raise ValueError(f"Unknown week: {week}. Choose from: [1, 2, 3]")
     
     # Create the respond function that uses our chat implementation
-    def respond(message: str, history: List[Tuple[str, str]]) -> str:
+    def respond(message: str, history: List[Tuple[str, str]]):
         """Process the message and return a response.
         
         Args:
             message: The user's input message
             history: List of previous (user, assistant) message tuples
             
-        Returns:
+        Yields:
             str: The assistant's response
         """
-        # Get response from our chat implementation
-        return chat_interface.process_message(message, history)
+        # Convert history format from Gradio tuples to dict format
+        chat_history = [
+            {"role": "user" if i % 2 == 0 else "assistant", "content": msg}
+            for pair in history
+            for i, msg in enumerate(pair)
+        ] if history else None
+        
+        # Process message and yield response
+        yield chat_interface.process_message(message, chat_history)
     
     # Create the Gradio interface
     demo = gr.ChatInterface(

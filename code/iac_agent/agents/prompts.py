@@ -50,3 +50,27 @@ TF_FILES_GENERATION_PROMPT = PromptTemplate.from_template(
         User Requirements:
         {USER_INPUT}
     """)
+
+TF_ERROR_FIXING_PROMPT = PromptTemplate.from_template(
+    """You are a Terraform expert. Fix the validation errors in these files.
+
+USER REQUIREMENTS:
+{USER_INPUT}
+
+VALIDATION ERRORS:
+{VALIDATION_ERRORS}
+
+CURRENT FILES:
+{CURRENT_FILES}
+
+IMPORTANT: Generate corrected Terraform files with the EXACT SAME FILENAMES as shown above.
+Use this format for each file:
+
+# filename.tf
+```hcl
+[corrected terraform code]
+```
+
+Fix ONLY the reported errors. Keep filenames and structure the same.
+"""
+)
