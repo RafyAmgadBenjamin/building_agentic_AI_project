@@ -1,10 +1,9 @@
-"""Part 3 - Deep Research Multi-Agent System implementation.
+"""Part 3 - Enhance the performance.
 
 This implementation focuses on:
-- Creating specialized agents for different research tasks
-- Coordinating multiple agents for comprehensive research
-- Generating structured research reports
-- Managing complex multi-agent workflows
+- improve the performance 
+- validate the terraform code 
+- deploy the infrastructure as code automatically()
 """
 
 from typing import Dict, List, Optional

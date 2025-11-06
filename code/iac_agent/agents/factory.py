@@ -6,9 +6,9 @@ based on the selected Week 3 mode.
 
 from enum import Enum
 from iac_agent.core.chat_interface import ChatInterface
-from iac_agent.week3.part1 import IacAgentChat
-from iac_agent.week3.part2 import AgenticRAGChat
-from iac_agent.week3.part3 import DeepResearchChat
+from iac_agent.agents.part1 import IacAgentChat
+from iac_agent.agents.part2 import AgenticRAGChat
+from iac_agent.agents.part3 import DeepResearchChat
 
 
 class ProjectIteration(Enum):

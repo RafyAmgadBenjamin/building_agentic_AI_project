@@ -23,7 +23,7 @@ def create_demo(week: str = "project", mode_str: str = "part1", use_solution: bo
     # Week 3 implementation
     if week == "project":
         # Import the appropriate factory based on use_solution flag
-        from iac_agent.week3.factory import ProjectIteration, create_chat_implementation as create_chat
+        from iac_agent.agents.factory import ProjectIteration, create_chat_implementation as create_chat
 
         # Convert string to enum
         mode_map = {
