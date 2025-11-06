@@ -8,7 +8,7 @@ This implementation focuses on:
 """
 
 from typing import Dict, List, Optional
-from perplexia_ai.core.chat_interface import ChatInterface
+from iac_agent.core.chat_interface import ChatInterface
 
 
 class DeepResearchChat(ChatInterface):

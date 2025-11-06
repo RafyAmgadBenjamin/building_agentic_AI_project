@@ -23,16 +23,13 @@ def create_demo(week: str = "project", mode_str: str = "part1", use_solution: bo
     # Week 3 implementation
     if week == "project":
         # Import the appropriate factory based on use_solution flag
-        if use_solution:
-            from perplexia_ai.solutions.week3.factory import Week3Mode, create_chat_implementation as create_chat
-        else:
-            from perplexia_ai.week3.factory import Week3Mode, create_chat_implementation as create_chat
+        from iac_agent.week3.factory import ProjectIteration, create_chat_implementation as create_chat
 
         # Convert string to enum
         mode_map = {
-            "part1": Week3Mode.PART1_TOOL_USING_AGENT,
-            "part2": Week3Mode.PART2_AGENTIC_RAG,
-            "part3": Week3Mode.PART3_DEEP_RESEARCH
+            "part1": ProjectIteration.IAC_AGENT,
+            "part2": ProjectIteration.AGENTIC_RAG,
+            "part3": ProjectIteration.DEEP_RESEARCH
         }
         
         if mode_str not in mode_map:

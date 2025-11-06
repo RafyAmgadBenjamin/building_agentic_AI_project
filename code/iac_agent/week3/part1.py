@@ -5,8 +5,8 @@ infrastructure as code based on user requirements using a tool-using agent appro
 """
 
 from typing import Dict, List, Optional
-from perplexia_ai.core.chat_interface import ChatInterface
-from perplexia_ai.tools.calculator import Calculator
+from iac_agent.core.chat_interface import ChatInterface
+from iac_agent.tools.calculator import Calculator
 from langchain.chat_models import init_chat_model
 from langchain_core.tools import tool
 from langchain.prompts import ChatPromptTemplate
@@ -21,18 +21,18 @@ from opik import track
 from opik.integrations.langchain import OpikTracer
 import opik
 
-from perplexia_ai.week3.prompts import (
+from iac_agent.week3.prompts import (
     USER_REQUIREMENTS_VALIDATION_PROMPT,
     TF_FILES_GENERATION_PROMPT,
 )
 
 
-from perplexia_ai.week3.workflow_state import WorkflowState
+from iac_agent.week3.workflow_state import WorkflowState
 
 
-class ToolUsingAgentChat(ChatInterface):
+class IacAgentChat(ChatInterface):
     import logging
-    logger = logging.getLogger("ToolUsingAgentChat")
+    logger = logging.getLogger("IacAgentChat")
     """Project iteration 1 implementation focusing on having full POC for generating infrastructure as code."""
 
     def __init__(self):
