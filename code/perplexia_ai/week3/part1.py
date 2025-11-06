@@ -1,9 +1,7 @@
-"""Part 1 - Tool-Using Agent implementation.
+"""Part 1.
 
-This implementation focuses on:
-- Converting tools from Assignment 1 to use with LangGraph
-- Using the ReAct pattern for autonomous tool selection
-- Comparing manual workflow vs agent approaches
+This is the first iteration of the project focusing on having a full POC for generating
+infrastructure as code based on user requirements using a tool-using agent approach.
 """
 
 from typing import Dict, List, Optional
@@ -16,7 +14,7 @@ from langgraph.prebuilt import create_react_agent
 from datetime import datetime
 import os
 import json
-from langgraph.graph import StateGraph, MessagesState, START, END
+from langgraph.graph import StateGraph, START, END
 
 # Opik imports
 from opik import track
@@ -29,17 +27,12 @@ from perplexia_ai.week3.prompts import (
 )
 
 
-class WorkflowState(MessagesState):
-    user_input: str
-    terraform_files_paths: List[str]
-    is_valid_terraform_files: bool
-    terraform_files_validation_errors: Optional[str]
-    is_valid_user_requirements: bool
-    user_requirements_validation_errors: Optional[str]
-    user_message: List[str]
+from perplexia_ai.week3.workflow_state import WorkflowState
 
 
 class ToolUsingAgentChat(ChatInterface):
+    import logging
+    logger = logging.getLogger("ToolUsingAgentChat")
     """Project iteration 1 implementation focusing on having full POC for generating infrastructure as code."""
 
     def __init__(self):
@@ -117,16 +110,16 @@ class ToolUsingAgentChat(ChatInterface):
         Returns:
             WorkflowState: The updated workflow state with validation results
         """
-        print("#### validating user requirements is called with this user input", workflow_state["user_input"])
+        self.logger.info(f"Validating user requirements is called with this user input: {workflow_state['user_input']}")
         formated_prompted = USER_REQUIREMENTS_VALIDATION_PROMPT.format_prompt(
             USER_INPUT=workflow_state["user_input"]
         )
-        print("formated_prompted", formated_prompted.text)
+        self.logger.debug(f"Formatted prompt: {formated_prompted.text}")
 
         response = self.llm.invoke(formated_prompted.text)
-        print("#### llm response", response)
+        self.logger.debug(f"LLM response: {response}")
         response_content = response.content.strip()
-        print("#### response content:", response_content)
+        self.logger.info(f"Response content: {response_content}")
         
         # TODO: hardening parsing logic to extract JSON from response
         if "NOT_VALID" in response_content:
@@ -184,16 +177,15 @@ class ToolUsingAgentChat(ChatInterface):
             WorkflowState: The updated workflow state with generated file paths
         """
         # Implement file generation logic here
-        print("#### generating terraform files is called with this user input", workflow_state["user_input"])
-        
+        self.logger.info(f"Generating terraform files is called with this user input: {workflow_state['user_input']}")
         formated_prompted = TF_FILES_GENERATION_PROMPT.format_prompt(
             USER_INPUT=workflow_state["user_input"]
         )
-        print("formated_prompted", formated_prompted.text)
+        self.logger.debug(f"Formatted prompt: {formated_prompted.text}")
         response = self.llm.invoke(formated_prompted.text)
 
         response_content = response.content.strip()
-        print("#### response content:", response_content)
+        self.logger.info(f"Response content: {response_content}")
         
         return workflow_state
 
