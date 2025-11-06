@@ -1,0 +1,24 @@
+[project]
+name = "iac-agent"
+version = "0.1.0"
+description = "Infrastructure as Code Agent - AI-powered Terraform generation using LangGraph"
+readme = "README.md"
+requires-python = ">=3.11.8"
+dependencies = [
+    "gradio>=5.49.1",
+    "langchain>=1.0.3",
+    "langchain-core>=1.0.3",
+    "langchain-openai>=1.0.2",
+    "langgraph>=1.0.2",
+    "opik>=1.9.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = []
+
+[tool.hatch.build.targets.wheel]
+packages = ["code/iac_agent"]
