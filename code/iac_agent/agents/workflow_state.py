@@ -1,8 +1,10 @@
-from typing import List, Optional
+from typing import Dict, List, Optional
 from langgraph.graph import MessagesState
+
 
 class WorkflowState(MessagesState):
     user_input: str
+    terraform_files: Dict[str, str]  # filename -> content mapping
     terraform_files_paths: List[str]
     is_valid_terraform_files: bool
     terraform_files_validation_errors: Optional[str]

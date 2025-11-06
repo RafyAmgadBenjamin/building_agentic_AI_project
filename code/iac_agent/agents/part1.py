@@ -9,11 +9,13 @@ from iac_agent.core.chat_interface import ChatInterface
 from iac_agent.tools.calculator import Calculator
 from langchain.chat_models import init_chat_model
 from langchain_core.tools import tool
-from langchain.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from langgraph.prebuilt import create_react_agent
 from datetime import datetime
 import os
 import json
+import re
+from pathlib import Path
 from langgraph.graph import StateGraph, START, END
 
 # Opik imports
@@ -176,8 +178,8 @@ class IacAgentChat(ChatInterface):
         Returns:
             WorkflowState: The updated workflow state with generated file paths
         """
-        # Implement file generation logic here
         self.logger.info(f"Generating terraform files is called with this user input: {workflow_state['user_input']}")
+        
         formated_prompted = TF_FILES_GENERATION_PROMPT.format_prompt(
             USER_INPUT=workflow_state["user_input"]
         )
@@ -187,7 +189,54 @@ class IacAgentChat(ChatInterface):
         response_content = response.content.strip()
         self.logger.info(f"Response content: {response_content}")
         
+        # parse Terraform code blocks from the response
+        terraform_files = self._parse_terraform_files(response_content)
+        workflow_state["terraform_files"] = terraform_files
+        
+        self.logger.info(f"Parsed {len(terraform_files)} Terraform files")
+        
         return workflow_state
+    
+    def _parse_terraform_files(self, response_content: str) -> Dict[str, str]:
+        """Parse Terraform files from LLM response.
+        
+        Args:
+            response_content: The LLM response containing Terraform code
+            
+        Returns:
+            Dict mapping filename to file content
+        """
+        terraform_files = {}
+        seen_filenames = {}
+        
+        # extract filenames 
+        pattern = r'(?:#+\s+|\*\*)([^\n\*]+\.tf)(?:\*\*)?\s*\n?\s*```[^\n]*\n(.*?)```'
+        matches = re.finditer(pattern, response_content, re.DOTALL)
+        
+        for match in matches:
+            filename = match.group(1).strip()
+            content = match.group(2).strip()
+            
+            # handle duplicate filenames
+            if filename in seen_filenames:
+                seen_filenames[filename] += 1
+                base_name = filename.rsplit('.tf', 1)[0]
+                filename = f"{base_name}_{seen_filenames[filename]}.tf"
+            else:
+                seen_filenames[filename] = 1
+            
+            terraform_files[filename] = content
+        
+        # extract code blocks without filenames
+        if not terraform_files:
+            code_block_pattern = r'```[^\n]*\n(.*?)```'
+            matches = re.finditer(code_block_pattern, response_content, re.DOTALL)
+            
+            for i, match in enumerate(matches, 1):
+                content = match.group(1).strip()
+                terraform_files[f"main_{i}.tf"] = content
+        
+        return terraform_files
 
     def _write_terraform_files_to_disk(
         self, workflow_state: WorkflowState
@@ -200,7 +249,34 @@ class IacAgentChat(ChatInterface):
         Returns:
             WorkflowState: The updated workflow state with file paths
         """
-        # Implement file writing logic here
+        terraform_files = workflow_state.get("terraform_files", {})
+        
+        if not terraform_files:
+            self.logger.warning("No Terraform files to write")
+            workflow_state["terraform_files_paths"] = []
+            return workflow_state
+        
+        # create output directory with time
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_dir = Path("generated_tf") / timestamp
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        written_paths = []
+        
+        for filename, content in terraform_files.items():
+            file_path = output_dir / filename
+            try:
+                with open(file_path, 'w') as f:
+                    f.write(content)
+                written_paths.append(str(file_path))
+                self.logger.info(f"Written Terraform file: {file_path}")
+            except Exception as e:
+                self.logger.error(f"Error writing file {filename}: {e}")
+        
+        workflow_state["terraform_files_paths"] = written_paths
+        
+        self.logger.info(f"Successfully wrote {len(written_paths)} Terraform files to {output_dir}")
+        
         return workflow_state
 
     def _validate_terraform_files(self, workflow_state: WorkflowState) -> WorkflowState:
@@ -212,9 +288,24 @@ class IacAgentChat(ChatInterface):
         Returns:
             WorkflowState: The updated workflow state with validation results
         """
-        # For now, assume terraform files are always valid
-        # You can implement actual validation logic later
+        terraform_files_paths = workflow_state.get("terraform_files_paths", [])
+        
+        if not terraform_files_paths:
+            workflow_state["is_valid_terraform_files"] = False
+            workflow_state["terraform_files_validation_errors"] = "No Terraform files were generated."
+            workflow_state["user_message"] = "Failed to generate Terraform files. Please try again with more specific requirements."
+            return workflow_state
+
+        # For now, assume terraform files are always valid if they were written
         workflow_state["is_valid_terraform_files"] = True
         workflow_state["terraform_files_validation_errors"] = ""
-        workflow_state["user_message"] = "Terraform files have been successfully generated and validated."
+        
+        # Create success message with file list
+        files_list = "\n".join([f"  - {path}" for path in terraform_files_paths])
+        workflow_state["user_message"] = (
+            f"Terraform files have been successfully generated and saved!\n\n"
+            f"Generated files ({len(terraform_files_paths)}):\n{files_list}\n\n"
+            f"You can now review and apply these Terraform configurations."
+        )
+        
         return workflow_state
