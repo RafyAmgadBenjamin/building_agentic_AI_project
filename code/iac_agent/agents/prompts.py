@@ -63,7 +63,6 @@ VALIDATION ERRORS:
 CURRENT FILES:
 {CURRENT_FILES}
 
-IMPORTANT: Generate corrected Terraform files with the EXACT SAME FILENAMES as shown above.
 Use this format for each file:
 
 # filename.tf
