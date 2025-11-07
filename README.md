@@ -83,9 +83,10 @@ code/
 
 ## Project Iterations
 
-- **IAC_AGENT (part1):** Validates requirements and generates Terraform files using a tool-using agent with automatic Terraform validation.
+### Part 1 - IaC Agent: 
+Validates requirements and generates Terraform files using a tool-using agent with automatic Terraform validation.
 
-### Terraform Validation Process
+**Terraform Validation Process**
 
 Part1 automatically validates generated Terraform files through three stages:
 1. **`terraform init`** - Initializes the Terraform working directory and downloads required providers
@@ -136,11 +137,65 @@ graph TD
     style RouteSuccess fill:#e7f3ff
     style RouteFailure fill:#e7f3ff
 ```
-
-- **AGENTIC_RAG (part2):** Demonstrates retrieval-augmented generation with agentic workflows to load the organization playbook to deploy
+### Part 2 - IaC Agent with RAG :
+Demonstrates retrieval-augmented generation with agentic workflows to load the organization playbook to deploy
 the infrastructure.
-- **performance and validation (part3):** Enhance the performance and
-validate the terraform files to be ready for deployment on the infrastructure.
+
+
+```mermaid
+graph TD
+    %% Data Sources for Vector DB
+    BestPractices[Best Practices<br/>Documentation] --> Ingestion[Document Ingestion<br/>+ Chunking]
+    TFStandards[Terraform<br/>Standards] --> Ingestion
+    CompanyRepo[Company IaC<br/>Repository] --> Ingestion
+    CloudDocs[Cloud Provider<br/>Documentation] --> Ingestion
+    
+    Ingestion --> ChromaDB[(Chroma Vector DB<br/>Embedded Documents)]
+    
+    %% Main Workflow
+    Start([User Submits Requirements]) --> QueryEmbedding[Create Query Embedding]
+    
+    QueryEmbedding --> ChromaDB
+    
+    ChromaDB --> RAG[RAG: Retrieve Top-K<br/>Relevant Contexts]
+    
+    RAG --> ValidateReq[Validate Requirements<br/>with Retrieved Context]
+    
+    ValidateReq -->|Valid| GenFiles[Generate Terraform Files<br/>+ Log Generation]
+    ValidateReq -->|Invalid| EndInvalid([END: Validation Errors])
+    
+    GenFiles --> WriteFiles[Write Files to Disk]
+    
+    WriteFiles --> SecurityCheck[Security Check<br/>No Secrets/Public Buckets]
+    
+    SecurityCheck -->|Pass| TFValidate[Terraform Validate<br/>init + validate + plan]
+    SecurityCheck -->|Fail| ShowFailure
+    
+    TFValidate -->|Success| CalcMetrics[Calculate Metrics<br/>+ Log Results]
+    TFValidate -->|Failed| CheckRetry{Attempts > 2?}
+    
+    CheckRetry -->|No| FixErrors[Fix Errors<br/>Store Failed Generation<br/>Increment Count]
+    CheckRetry -->|Yes| CalcMetrics
+    
+    FixErrors --> WriteFiles
+    
+    CalcMetrics --> ShowSuccess([END: Generated Files + Metrics])
+    CalcMetrics --> ShowFailure([END: Errors After 3 Attempts])
+    
+    style Start fill:#e1f5ff
+    style ShowSuccess fill:#d4edda
+    style ShowFailure fill:#f8d7da
+    style EndInvalid fill:#f8d7da
+    style RAG fill:#e8daff
+    style ValidateReq fill:#fff3cd
+    style GenFiles fill:#fff3cd
+    style SecurityCheck fill:#ffcccc
+    style TFValidate fill:#cfe2ff
+    style FixErrors fill:#ffeaa7
+    style CalcMetrics fill:#d1f2eb
+```
+### Part3 - Performance and validation:
+Enhance the performance and validate the terraform files to be ready for deployment on the infrastructure.
 
 ## Customization
 
