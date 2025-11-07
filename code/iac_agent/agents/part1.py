@@ -92,25 +92,30 @@ class IacAgentChat(ChatInterface):
 
         self.graph = builder.compile()
 
-    # @track(name="process_message", project_name="project_Iac_agent")
-    def process_message(self, message: str, chat_history: Optional[List[Dict[str, str]]] = None) -> str:
-        """Process a message using the tool-using agent.
+    @track(name="process_message", project_name="project_Iac_agent")
+    def process_message(self, message: str, chat_history: Optional[List[Dict[str, str]]] = None):
+        """Process a message using the tool-using agent with streaming.
 
         Args:
             message: The user's input message
             chat_history: Previous conversation history
 
-        Returns:
-            str: The assistant's final response
+        Yields:
+            str: Progress updates and final response
         """
-        final_state = None
-        
         for event in self.graph.stream({"user_input": message}):
             node_name = list(event.keys())[0]
-            final_state = event[node_name]
-            self.logger.debug(f"Node {node_name} completed, user_message: {final_state.get('user_message', 'N/A')[:100]}")
+            state = event[node_name]
+            
+            # Yield progress update for each node
+            yield f"🔄 **{node_name.replace('_', ' ').title()}**\n"
+            
+            # Log for debugging
+            self.logger.debug(f"Node {node_name} completed, user_message: {state.get('user_message', 'N/A')[:100]}")
         
-        return final_state.get('user_message', '') if final_state else ''
+        # Yield final message
+        final_message = state.get('user_message', 'Processing complete')
+        yield f"\n---\n\n{final_message}"
 
     @track(name="validate_user_requirements", project_name="project_Iac_agent")
     def _validate_user_requirements(
