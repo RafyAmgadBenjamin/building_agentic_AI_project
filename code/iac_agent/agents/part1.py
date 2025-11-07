@@ -39,9 +39,9 @@ class IacAgentChat(ChatInterface):
 
     def __init__(self):
         self.logger.setLevel(self.logging.DEBUG)
-        
+
         # Initialize Opik client
-        # self.opik_client = opik.Opik()
+        self.opik_client = opik.Opik()
 
         model_kwargs = {"model": "gpt-4o-mini"}
         # Get environment variables at runtime
@@ -54,7 +54,7 @@ class IacAgentChat(ChatInterface):
             model_kwargs["base_url"] = openai_api_base
 
         # Create OpikTracer for LangChain integration
-        # self.opik_tracer = OpikTracer()
+        self.opik_tracer = OpikTracer()
         self.llm = init_chat_model(**model_kwargs)
 
         builder = StateGraph(WorkflowState)
@@ -84,13 +84,13 @@ class IacAgentChat(ChatInterface):
             self._route_after_terraform_validation,
             {"finalize": "finalize", "fix_terraform_errors": "fix_terraform_errors"},
         )
-        
+
         # Loop back to write files after fixing
         builder.add_edge("fix_terraform_errors", "write_terraform_files_to_disk")
-        
+
         # finalize goes to END
         builder.add_edge("finalize", END)
-        
+
         self.graph = builder.compile()
 
     # @track(name="process_message", project_name="project_Iac_agent")
@@ -113,6 +113,7 @@ class IacAgentChat(ChatInterface):
         
         return final_state.get('user_message', '') if final_state else ''
 
+    @track(name="validate_user_requirements", project_name="project_Iac_agent")
     def _validate_user_requirements(
         self, workflow_state: WorkflowState
     ) -> WorkflowState:
@@ -149,6 +150,7 @@ class IacAgentChat(ChatInterface):
             
         return workflow_state
 
+    @track(name="route_after_requirements_validation", project_name="project_Iac_agent")
     def _route_after_requirements_validation(self, workflow_state: WorkflowState):
         """Control the routing condition for user requirements validation.
 
@@ -164,6 +166,7 @@ class IacAgentChat(ChatInterface):
             else END
         )
         
+    @track(name="fix_terraform_errors", project_name="project_Iac_agent")
     def _fix_terraform_errors(self, workflow_state: WorkflowState) -> WorkflowState:
         """Use LLM to analyze validation errors and regenerate fixed files.
 
@@ -215,6 +218,7 @@ class IacAgentChat(ChatInterface):
         
         return workflow_state
         
+    @track(name="finalize", project_name="project_Iac_agent")
     def _finalize(self, workflow_state: WorkflowState) -> WorkflowState:
         """Create final message with all details (success or failure).
 
@@ -259,6 +263,7 @@ class IacAgentChat(ChatInterface):
         
         return workflow_state
 
+    @track(name="route_after_terraform_validation", project_name="project_Iac_agent")
     def _route_after_terraform_validation(self, workflow_state: WorkflowState):
         """Route based on validation result and retry count.
 
@@ -279,6 +284,7 @@ class IacAgentChat(ChatInterface):
         self.logger.info(f"Routing to error fixing (attempt {attempt_count + 1}/3)")
         return "fix_terraform_errors"
 
+    @track(name="generate_terraform_files", project_name="project_Iac_agent")
     def _generate_terraform_files(self, workflow_state: WorkflowState) -> WorkflowState:
         """Generate Terraform files based on user requirements Using LLM.
 
@@ -354,6 +360,7 @@ class IacAgentChat(ChatInterface):
         
         return terraform_files
 
+    @track(name="write_terraform_files_to_disk", project_name="project_Iac_agent")
     def _write_terraform_files_to_disk(
         self, workflow_state: WorkflowState
     ) -> WorkflowState:
@@ -404,6 +411,7 @@ class IacAgentChat(ChatInterface):
         
         return workflow_state
 
+    @track(name="validate_terraform_files", project_name="project_Iac_agent")
     def _validate_terraform_files(self, workflow_state: WorkflowState) -> WorkflowState:
         """Run terraform validate on generated files.
 
