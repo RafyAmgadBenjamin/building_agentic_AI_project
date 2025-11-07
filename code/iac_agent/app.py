@@ -66,7 +66,7 @@ def create_demo(week: str = "project", mode_str: str = "part1", use_solution: bo
                     - AWS RDS instance
                     - Engine: MySQL 8.0
                     - Instance class: db.t3.micro
-                    - Region: us-west-1
+                    - Region: eu-west-2
                     - Database name: myapp_db
                     - Username: admin
                     - Storage: 20GB General Purpose SSD

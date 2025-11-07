@@ -127,8 +127,8 @@ class IacAgentChat(ChatInterface):
         Returns:
             WorkflowState: The updated workflow state with validation results
         """
-        workflow_state["progress_update"] = "🔍 Validating user requirements..."
         self.logger.info(f"Validating user requirements is called with this user input: {workflow_state['user_input']}")
+        workflow_state["progress_update"] = "🔍 Validating user requirements ... "
         formated_prompted = USER_REQUIREMENTS_VALIDATION_PROMPT.format_prompt(
             USER_INPUT=workflow_state["user_input"]
         )
@@ -145,6 +145,7 @@ class IacAgentChat(ChatInterface):
             workflow_state["user_requirements_validation_errors"] = ""
             workflow_state["user_message"] = "Requirements are valid and ready for Terraform generation."
             self.logger.info("User requirements validated successfully")
+
         else:
             raise ValueError("Unexpected response format from LLM.")
         return workflow_state
@@ -177,6 +178,7 @@ class IacAgentChat(ChatInterface):
         """
         workflow_state["validation_attempt_count"] = workflow_state.get("validation_attempt_count", 0) + 1
         attempt_count = workflow_state["validation_attempt_count"]
+
         workflow_state["progress_update"] = f"🛠️ Fixing Terraform errors (attempt {attempt_count}/3)..."
         self.logger.info(f"Analyzing errors and fixing (attempt {attempt_count}/3)")
         # format current files for prompt
@@ -216,6 +218,8 @@ class IacAgentChat(ChatInterface):
         Returns:
             WorkflowState: The updated workflow state with final message
         """
+        workflow_state["progress_update"] = f"✅ Finalizing ..."
+
         attempt_count = workflow_state.get("validation_attempt_count", 0)
         files_list = "\n".join([
             f"  - {path}"
@@ -266,6 +270,7 @@ class IacAgentChat(ChatInterface):
             return "finalize"
         
         self.logger.info(f"Routing to error fixing (attempt {attempt_count + 1}/3)")
+        workflow_state["progress_update"] = f"The generated Terraform files are not valid. Attempt {attempt_count + 1}/3 to fix errors."
         return "fix_terraform_errors"
 
     @track(name="generate_terraform_files", project_name="project_Iac_agent")
@@ -351,7 +356,7 @@ class IacAgentChat(ChatInterface):
         Returns:
             WorkflowState: The updated workflow state with file paths
         """
-        workflow_state["progress_update"] = "💾 Writing Terraform files to disk..."
+        workflow_state["progress_update"] = "💾 Generating Terraform files to be ready for validation using terraform..."
         terraform_files = workflow_state.get("terraform_files", {})
         if not terraform_files:
             self.logger.warning("No Terraform files to write")
@@ -391,7 +396,7 @@ class IacAgentChat(ChatInterface):
         Returns:
             WorkflowState: The updated workflow state with validation results
         """
-        workflow_state["progress_update"] = "🔎 Validating Terraform files..."
+        workflow_state["progress_update"] = "🔎 Validating the generated Terraform files using Terraform Engine "
         import subprocess
         output_dir = workflow_state.get("output_directory")
         if not output_dir:
