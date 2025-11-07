@@ -1,13 +1,13 @@
 """Part 2 - Agentic RAG implementation.
 
 This implementation focuses on:
-- Building an agent that can dynamically control its search strategy
-- Combining document retrieval with web search
-- Making autonomous decisions about information gathering
+- Integrating retrieval-augmented generation (RAG) techniques
+- so the agent can check the organization information before generating the 
+the Infrastructure as Code.
 """
 
 from typing import Dict, List, Optional
-from perplexia_ai.core.chat_interface import ChatInterface
+from iac_agent.core.chat_interface import ChatInterface
 
 
 class AgenticRAGChat(ChatInterface):

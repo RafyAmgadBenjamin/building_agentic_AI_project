@@ -1,0 +1,150 @@
+import os
+import gradio as gr
+from typing import List, Tuple
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+def create_demo(week: str = "project", mode_str: str = "part1", use_solution: bool = False):
+    """Create and return a Gradio demo with the specified week and mode.
+    
+    Args:
+        week: Which week implementation to use (1, 2, or 3)
+        mode_str: String representation of the mode ('part1', 'part2', or 'part3')
+        use_solution: If True, use solution implementation; if False, use student code
+        
+    Returns:
+        gr.ChatInterface: Configured Gradio chat interface
+    """
+    # Determine code type label
+    code_type = "Solution" if use_solution else "Student"
+    
+    # Week 3 implementation
+    if week == "project":
+        # Import the appropriate factory based on use_solution flag
+        from iac_agent.agents.factory import ProjectIteration, create_chat_implementation as create_chat
+
+        # Convert string to enum
+        mode_map = {
+            "part1": ProjectIteration.IAC_AGENT,
+            "part2": ProjectIteration.AGENTIC_RAG,
+            "part3": ProjectIteration.DEEP_RESEARCH
+        }
+        
+        if mode_str not in mode_map:
+            raise ValueError(f"Unknown mode: {mode_str}. Choose from: {list(mode_map.keys())}")
+        
+        mode = mode_map[mode_str]
+        chat_interface = create_chat(mode)
+        
+        titles = {
+            "part1": "Infrastructure as Code AI - Iteration 1: IaC Agent",
+            "part2": "Infrastructure as Code AI - Iteration 2: Agentic RAG",
+            "part3": "Infrastructure as Code AI - Iteration 3: Deep Research"
+        }
+        
+        descriptions = {
+            "part1": "Your intelligent AI assistant for generating Infrastructure as Code.",
+            "part2": "Your agentic RAG system that retrieves organizational information before generating IaC.",
+            "part3": "Your agentic RAG should has better performance and validate the terraform files to be ready for deployment"
+        }
+        
+        if mode_str == "part1":
+            examples = [
+                ["""
+                    Deploy a web server with:
+                    - Ubuntu 22.04 LTS
+                    - AWS EC2 t3.medium instance
+                    - In us-west-2 region
+                    - Open port 80 (HTTP) and 443 (HTTPS)
+                    - 20GB SSD storage
+                    - Basic security group
+                """],
+                ["""
+                    Deploy a MySQL database:
+                    - AWS RDS instance
+                    - Engine: MySQL 8.0
+                    - Instance class: db.t3.micro
+                    - Region: us-west-1
+                    - Database name: myapp_db
+                    - Username: admin
+                    - Storage: 20GB General Purpose SSD
+                    - Enable auto-backup (7 days retention)
+                    - Public access: No (private subnet only)
+                    - VPC: default VPC
+                    - Security group: Allow MySQL access from 10.0.1.0/24
+                    - Enable encryption at rest
+                    - Set backup window to 03:00-04:00 UTC
+                 """],
+                ["""
+                    Deploy a web application stack:
+                    - AWS region: us-east-1
+                    - VPC: Create new VPC with 2 subnets (public and private)
+                    - EC2 instance:
+                    - OS: Ubuntu 22.04 LTS
+                    - Type: t3.small
+                    - Public IP: Yes (for web access)
+                    - Security group: Allow HTTP (80) and SSH (22) from anywhere
+                    - RDS database:
+                    - Engine: MySQL 8.0
+                    - Instance: db.t3.micro
+                    - Database name: app_db
+                    - Username: admin
+                    - Private subnet only (no public access)
+                    - Storage: 50GB General Purpose SSD
+                    - Security group: Allow MySQL (3306) from EC2 security group
+                    - Networking:
+                    - EC2 and RDS must be able to communicate
+                    - SSH access to EC2 from my IP only
+                    - Tags: Environment=staging, Project=webapp
+                """]            ]
+        elif mode_str == "part2":
+            examples = [
+                ["What strategic goals did OPM outline in the 2022 report?"],
+                ["How did OPM's performance metrics evolve from 2018 to 2022?"],
+                ["What major challenges did OPM face in implementing its strategic plans?"],
+                ["Compare OPM's approach to workforce development across different fiscal years"]
+            ]
+        else:  # part3
+            examples = [
+                ["Research the current state and future prospects of quantum computing"],
+                ["Create a comprehensive report on climate change adaptation strategies"],
+                ["Analyze the impact of artificial intelligence on healthcare delivery"],
+                ["Frameworks for building LLM agents: an enterprise guide"]
+            ]
+    else:
+        raise ValueError(f"Unknown week: {week}. Choose from: [1, 2, 3]")
+    
+    # Create the respond function that uses our chat implementation
+    def respond(message: str, history: List[Tuple[str, str]]):
+        """Process the message and return a response.
+        
+        Args:
+            message: The user's input message
+            history: List of previous (user, assistant) message tuples
+            
+        Yields:
+            str: The assistant's response
+        """
+        # Convert history format from Gradio tuples to dict format
+        chat_history = [
+            {"role": "user" if i % 2 == 0 else "assistant", "content": msg}
+            for pair in history
+            for i, msg in enumerate(pair)
+        ] if history else None
+        
+        # Process message and yield response
+        yield chat_interface.process_message(message, chat_history)
+    
+    # Create the Gradio interface
+    demo = gr.ChatInterface(
+        fn=respond,
+        title=titles[mode_str],
+        type="messages",
+        description=descriptions[mode_str],
+        examples=examples,
+        theme=gr.themes.Soft()
+    )
+    
+    return demo

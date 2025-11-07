@@ -1,3 +1,5 @@
+import logging
+logging.basicConfig(level=logging.INFO)
 import os
 import sys
 import argparse
@@ -7,7 +9,7 @@ project_root = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(project_root)
 
 # Parse command line arguments
-parser = argparse.ArgumentParser(description='Run Perplexia AI Assistant')
+parser = argparse.ArgumentParser(description='Run infrastructure as code AI Assistant')
 parser.add_argument('--week', type=str, choices=['project'], default='project', 
                     help="type project to be able to run the project ('project')")
 parser.add_argument('--mode', type=str, choices=['part1', 'part2', 'part3'], 
@@ -17,7 +19,7 @@ parser.add_argument('--solution', action='store_true',
 args = parser.parse_args()
 
 # Import and run the app
-from perplexia_ai.app import create_demo
+from iac_agent.app import create_demo
 
 if __name__ == "__main__":
     # Convert week to int if it's '1', '2', or '3', else keep as string
