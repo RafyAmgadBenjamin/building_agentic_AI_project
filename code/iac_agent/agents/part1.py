@@ -106,13 +106,11 @@ class IacAgentChat(ChatInterface):
         for event in self.graph.stream({"user_input": message}):
             node_name = list(event.keys())[0]
             state = event[node_name]
-            
-            # Yield progress update for each node
-            yield f"🔄 **{node_name.replace('_', ' ').title()}**\n"
-            
+            # Yield progress update for each node using workflow_state['progress_update']
+            progress_update = state.get('progress_update', f"🔄 **{node_name.replace('_', ' ').title()}**\n")
+            yield progress_update
             # Log for debugging
             self.logger.debug(f"Node {node_name} completed, user_message: {state.get('user_message', 'N/A')[:100]}")
-        
         # Yield final message
         final_message = state.get('user_message', 'Processing complete')
         yield f"\n---\n\n{final_message}"
@@ -129,14 +127,13 @@ class IacAgentChat(ChatInterface):
         Returns:
             WorkflowState: The updated workflow state with validation results
         """
+        workflow_state["progress_update"] = "🔍 Validating user requirements..."
         self.logger.info(f"Validating user requirements is called with this user input: {workflow_state['user_input']}")
         formated_prompted = USER_REQUIREMENTS_VALIDATION_PROMPT.format_prompt(
             USER_INPUT=workflow_state["user_input"]
         )
-
         response = self.llm.invoke(formated_prompted.text)
         response_content = response.content.strip()
-        
         # TODO: hardening parsing logic to extract JSON from response
         if "NOT_VALID" in response_content:
             workflow_state["is_valid_user_requirements"] = False
@@ -150,7 +147,6 @@ class IacAgentChat(ChatInterface):
             self.logger.info("User requirements validated successfully")
         else:
             raise ValueError("Unexpected response format from LLM.")
-            
         return workflow_state
 
     @track(name="route_after_requirements_validation", project_name="project_Iac_agent")
@@ -180,45 +176,34 @@ class IacAgentChat(ChatInterface):
             WorkflowState: The updated workflow state with regenerated files
         """
         workflow_state["validation_attempt_count"] = workflow_state.get("validation_attempt_count", 0) + 1
-        
         attempt_count = workflow_state["validation_attempt_count"]
+        workflow_state["progress_update"] = f"🛠️ Fixing Terraform errors (attempt {attempt_count}/3)..."
         self.logger.info(f"Analyzing errors and fixing (attempt {attempt_count}/3)")
-        
         # format current files for prompt
         current_files_str = "\n\n".join([
             f"# {filename}\n```hcl\n{content}\n```"
             for filename, content in workflow_state["terraform_files"].items()
         ])
-        
         # create fix prompt
         from iac_agent.agents.prompts import TF_ERROR_FIXING_PROMPT
-        
         fix_prompt = TF_ERROR_FIXING_PROMPT.format_prompt(
             USER_INPUT=workflow_state["user_input"],
             VALIDATION_ERRORS=workflow_state["terraform_files_validation_errors"],
             CURRENT_FILES=current_files_str
         )
-        
         self.logger.debug(f"Fix prompt created for attempt {attempt_count}")
-        
         # Get LLM to fix errors
         response = self.llm.invoke(fix_prompt.text)
         response_content = response.content.strip()
-        
         self.logger.debug(f"LLM fix response: {response}")
         self.logger.debug(f"LLM fix response content: {response_content}")
-        
         # parse regenerated files
         fixed_files = self._parse_terraform_files(response_content)
-        
         if not fixed_files:
             self.logger.warning("LLM did not generate any files, keeping original")
             return workflow_state
-        
         workflow_state["terraform_files"] = fixed_files
-        
         self.logger.info(f"Attempt {attempt_count}: Regenerated {len(fixed_files)} files")
-        
         return workflow_state
         
     @track(name="finalize", project_name="project_Iac_agent")
@@ -236,34 +221,30 @@ class IacAgentChat(ChatInterface):
             f"  - {path}"
             for path in workflow_state.get("terraform_files_paths", [])
         ])
-        
         if workflow_state["is_valid_terraform_files"]:
-            # Success path
             attempt_msg = f" (fixed in {attempt_count} attempts)" if attempt_count > 0 else ""
-            
             terraform_files = workflow_state.get("terraform_files", {})
             files_content = "\n\n".join([
                 f"### {filename}\n```hcl\n{content}\n```"
                 for filename, content in terraform_files.items()
             ])
-            
             workflow_state["user_message"] = (
                 f"Terraform files validated successfully{attempt_msg}!\n\n"
                 f"**Generated Files:**\n{files_list}\n\n"
                 f"**File Contents:**\n\n{files_content}\n\n"
                 f"You can now review and apply these configurations."
             )
+            workflow_state["progress_update"] = "✅ Finalizing: Terraform files validated successfully."
             self.logger.info("Workflow completed successfully")
         else:
-            # Failure path
             workflow_state["user_message"] = (
                 f"Failed to generate valid Terraform files after {attempt_count} attempts.\n\n"
                 f"**Last Validation Errors:**\n```\n{workflow_state['terraform_files_validation_errors']}\n```\n\n"
                 f"**Generated Files (with errors):**\n{files_list}\n\n"
                 f"Please refine your requirements and try again."
             )
+            workflow_state["progress_update"] = "❌ Finalizing: Failed to generate valid Terraform files."
             self.logger.error(f"Max retries reached. Last error: {workflow_state['terraform_files_validation_errors']}")
-        
         return workflow_state
 
     @track(name="route_after_terraform_validation", project_name="project_Iac_agent")
@@ -297,24 +278,19 @@ class IacAgentChat(ChatInterface):
         Returns:
             WorkflowState: The updated workflow state with generated file paths
         """
+        workflow_state["progress_update"] = "📝 Generating Terraform files..."
         self.logger.info(f"Generating terraform files is called with this user input: {workflow_state['user_input']}")
-        
         formated_prompted = TF_FILES_GENERATION_PROMPT.format_prompt(
             USER_INPUT=workflow_state["user_input"]
         )
         self.logger.debug(f"Formatted prompt: {formated_prompted.text}")
         response = self.llm.invoke(formated_prompted.text)
-
         response_content = response.content.strip()
         self.logger.debug(f"LLM response: {response}")
         self.logger.debug(f"Response content: {response_content}")
-        
-        # parse Terraform code blocks from the response
         terraform_files = self._parse_terraform_files(response_content)
         workflow_state["terraform_files"] = terraform_files
-        
         self.logger.info(f"Parsed {len(terraform_files)} Terraform files")
-        
         return workflow_state
     
     def _parse_terraform_files(self, response_content: str) -> Dict[str, str]:
@@ -375,29 +351,23 @@ class IacAgentChat(ChatInterface):
         Returns:
             WorkflowState: The updated workflow state with file paths
         """
+        workflow_state["progress_update"] = "💾 Writing Terraform files to disk..."
         terraform_files = workflow_state.get("terraform_files", {})
-        
         if not terraform_files:
             self.logger.warning("No Terraform files to write")
             workflow_state["terraform_files_paths"] = []
             return workflow_state
-        
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         attempt_count = workflow_state.get("validation_attempt_count", 0)
-        
         if attempt_count > 0:
             dir_name = f"{timestamp}_attempt{attempt_count}"
         else:
             dir_name = timestamp
-            
         output_dir = Path("generated_tf") / dir_name
         output_dir.mkdir(parents=True, exist_ok=True)
-
         workflow_state["output_directory"] = str(output_dir.absolute())
         self.logger.info(f"Created new output directory: {output_dir.absolute()}")
-        
         written_paths = []
-        
         for filename, content in terraform_files.items():
             file_path = output_dir / filename
             try:
@@ -407,11 +377,8 @@ class IacAgentChat(ChatInterface):
                 self.logger.info(f"Written Terraform file: {file_path}")
             except Exception as e:
                 self.logger.error(f"Error writing file {filename}: {e}")
-        
         workflow_state["terraform_files_paths"] = written_paths
-        
         self.logger.info(f"Successfully wrote {len(written_paths)} Terraform files")
-        
         return workflow_state
 
     @track(name="validate_terraform_files", project_name="project_Iac_agent")
@@ -424,18 +391,15 @@ class IacAgentChat(ChatInterface):
         Returns:
             WorkflowState: The updated workflow state with validation results
         """
+        workflow_state["progress_update"] = "🔎 Validating Terraform files..."
         import subprocess
-        
         output_dir = workflow_state.get("output_directory")
         if not output_dir:
             workflow_state["is_valid_terraform_files"] = False
             workflow_state["terraform_files_validation_errors"] = "No output directory found"
             return workflow_state
-        
         self.logger.info(f"Validating Terraform files in {output_dir}")
-        
         try:
-            # run terraform init
             self.logger.info("Running terraform init...")
             init_result = subprocess.run(
                 ['terraform', 'init','-backend=false'],
@@ -444,17 +408,14 @@ class IacAgentChat(ChatInterface):
                 text=True,
                 timeout=60
             )
-            
             if init_result.returncode != 0:
                 error_msg = init_result.stderr or init_result.stdout or "Unknown terraform init error"
                 workflow_state["is_valid_terraform_files"] = False
                 workflow_state["terraform_files_validation_errors"] = f"Terraform init failed:\n{error_msg}"
+                workflow_state["progress_update"] = "❌ Terraform init failed."
                 self.logger.warning(f"Terraform init failed: {error_msg}")
                 return workflow_state
-                
             self.logger.debug(f"Init output: {init_result.stdout}")
-
-            # run terraform validate
             self.logger.info("Running terraform validate...")
             validate_result = subprocess.run(
                 ['terraform', 'validate'],
@@ -463,20 +424,19 @@ class IacAgentChat(ChatInterface):
                 text=True,
                 timeout=60
             )
-            
             if validate_result.returncode != 0:
                 error_msg = validate_result.stderr or validate_result.stdout or "Unknown terraform validate error"
                 workflow_state["is_valid_terraform_files"] = False
                 workflow_state["terraform_files_validation_errors"] = f"Terraform validate failed:\n{error_msg}"
+                workflow_state["progress_update"] = "❌ Terraform validation failed."
                 self.logger.warning(f"Terraform validation failed: {error_msg}")
                 return workflow_state
-            
             self.logger.info("Terraform validate passed!")
-
             workflow_state["is_valid_terraform_files"] = True
             workflow_state["terraform_files_validation_errors"] = ""
+            workflow_state["progress_update"] = "✅ Terraform files validated successfully."
             self.logger.info("Terraform plan successful!") 
-            
+
             # # run terraform plan dry-run
             # self.logger.info("Running terraform plan...")
             # plan_result = subprocess.run(
@@ -496,17 +456,20 @@ class IacAgentChat(ChatInterface):
             #     workflow_state["is_valid_terraform_files"] = False
             #     workflow_state["terraform_files_validation_errors"] = f"Terraform plan failed:\n{error_msg}"
             #     self.logger.warning(f"Terraform plan failed: {error_msg}")
+
         except subprocess.TimeoutExpired:
             workflow_state["is_valid_terraform_files"] = False
             workflow_state["terraform_files_validation_errors"] = "Terraform command timed out"
+            workflow_state["progress_update"] = "❌ Terraform command timed out."
             self.logger.error("Terraform validation timed out")
         except FileNotFoundError:
             workflow_state["is_valid_terraform_files"] = False
             workflow_state["terraform_files_validation_errors"] = "Terraform CLI not found. Please install Terraform."
+            workflow_state["progress_update"] = "❌ Terraform CLI not found."
             self.logger.error("Terraform CLI not found")
         except Exception as e:
             workflow_state["is_valid_terraform_files"] = False
             workflow_state["terraform_files_validation_errors"] = f"Unexpected error: {str(e)}"
+            workflow_state["progress_update"] = f"❌ Unexpected error: {str(e)}"
             self.logger.error(f"Terraform validation error: {e}")
-        
         return workflow_state
