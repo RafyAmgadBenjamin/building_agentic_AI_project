@@ -66,7 +66,7 @@ def create_demo(week: str = "project", mode_str: str = "part1", use_solution: bo
                     - AWS RDS instance
                     - Engine: MySQL 8.0
                     - Instance class: db.t3.micro
-                    - Region: us-west-1
+                    - Region: eu-west-2
                     - Database name: myapp_db
                     - Username: admin
                     - Storage: 20GB General Purpose SSD
@@ -96,9 +96,9 @@ def create_demo(week: str = "project", mode_str: str = "part1", use_solution: bo
                     - Security group: Allow MySQL (3306) from EC2 security group
                     - Networking:
                     - EC2 and RDS must be able to communicate
-                    - SSH access to EC2 from my IP only
                     - Tags: Environment=staging, Project=webapp
-                """]            ]
+                """]            
+            ]
         elif mode_str == "part2":
             examples = [
                 ["What strategic goals did OPM outline in the 2022 report?"],
@@ -125,7 +125,7 @@ def create_demo(week: str = "project", mode_str: str = "part1", use_solution: bo
             history: List of previous (user, assistant) message tuples
             
         Yields:
-            str: The assistant's response
+            str: The assistant's response chunks
         """
         # Convert history format from Gradio tuples to dict format
         chat_history = [
@@ -134,14 +134,15 @@ def create_demo(week: str = "project", mode_str: str = "part1", use_solution: bo
             for i, msg in enumerate(pair)
         ] if history else None
         
-        # Process message and yield response
-        yield chat_interface.process_message(message, chat_history)
+        # Process message and yield response chunks
+        for chunk in chat_interface.process_message(message, chat_history):
+            yield chunk
     
     # Create the Gradio interface
     demo = gr.ChatInterface(
         fn=respond,
         title=titles[mode_str],
-        type="messages",
+        type="messages",  # Use "messages" for streaming
         description=descriptions[mode_str],
         examples=examples,
         theme=gr.themes.Soft()
