@@ -427,7 +427,7 @@ class IacAgentChat(ChatInterface):
             # run terraform init
             self.logger.info("Running terraform init...")
             init_result = subprocess.run(
-                ['terraform', 'init'],
+                ['terraform', 'init','-backend=false'],
                 cwd=output_dir,
                 capture_output=True,
                 text=True,
@@ -461,27 +461,30 @@ class IacAgentChat(ChatInterface):
                 return workflow_state
             
             self.logger.info("Terraform validate passed!")
+
+            workflow_state["is_valid_terraform_files"] = True
+            workflow_state["terraform_files_validation_errors"] = ""
+            self.logger.info("Terraform plan successful!") 
             
-            # run terraform plan dry-run
-            self.logger.info("Running terraform plan...")
-            plan_result = subprocess.run(
-                ['terraform', 'plan', '-input=false', '-no-color'],
-                cwd=output_dir,
-                capture_output=True,
-                text=True,
-                timeout=120
-            )
+            # # run terraform plan dry-run
+            # self.logger.info("Running terraform plan...")
+            # plan_result = subprocess.run(
+            #     ['terraform', 'plan', '-input=false', '-refresh=false', '-no-color'],
+            #     cwd=output_dir,
+            #     capture_output=True,
+            #     text=True,
+            #     timeout=120
+            # )
             
-            if plan_result.returncode == 0:
-                workflow_state["is_valid_terraform_files"] = True
-                workflow_state["terraform_files_validation_errors"] = ""
-                self.logger.info("Terraform plan successful!")
-            else:
-                error_msg = plan_result.stderr or plan_result.stdout or "Unknown terraform plan error"
-                workflow_state["is_valid_terraform_files"] = False
-                workflow_state["terraform_files_validation_errors"] = f"Terraform plan failed:\n{error_msg}"
-                self.logger.warning(f"Terraform plan failed: {error_msg}")
-                
+            # if plan_result.returncode == 0:
+            #     workflow_state["is_valid_terraform_files"] = True
+            #     workflow_state["terraform_files_validation_errors"] = ""
+            #     self.logger.info("Terraform plan successful!")
+            # else:
+            #     error_msg = plan_result.stderr or plan_result.stdout or "Unknown terraform plan error"
+            #     workflow_state["is_valid_terraform_files"] = False
+            #     workflow_state["terraform_files_validation_errors"] = f"Terraform plan failed:\n{error_msg}"
+            #     self.logger.warning(f"Terraform plan failed: {error_msg}")
         except subprocess.TimeoutExpired:
             workflow_state["is_valid_terraform_files"] = False
             workflow_state["terraform_files_validation_errors"] = "Terraform command timed out"

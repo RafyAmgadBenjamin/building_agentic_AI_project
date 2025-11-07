@@ -96,7 +96,6 @@ def create_demo(week: str = "project", mode_str: str = "part1", use_solution: bo
                     - Security group: Allow MySQL (3306) from EC2 security group
                     - Networking:
                     - EC2 and RDS must be able to communicate
-                    - SSH access to EC2 from my IP only
                     - Tags: Environment=staging, Project=webapp
                 """]            ]
         elif mode_str == "part2":
