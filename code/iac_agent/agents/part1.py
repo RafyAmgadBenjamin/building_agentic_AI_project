@@ -16,6 +16,7 @@ import os
 import json
 import re
 from pathlib import Path
+
 from langgraph.graph import StateGraph, START, END
 
 # Opik imports
@@ -28,17 +29,15 @@ from iac_agent.agents.prompts import (
     TF_FILES_GENERATION_PROMPT,
 )
 
-
 from iac_agent.agents.workflow_state import WorkflowState
+from iac_agent.core.logger_configuration import get_logger
 
 
 class IacAgentChat(ChatInterface):
-    import logging
-    logger = logging.getLogger("IacAgentChat")
+    logger = get_logger()
     """Project iteration 1 implementation focusing on having full POC for generating infrastructure as code."""
 
     def __init__(self):
-        self.logger.setLevel(self.logging.DEBUG)
 
         # Initialize Opik client
         self.opik_client = opik.Opik()
@@ -129,22 +128,21 @@ class IacAgentChat(ChatInterface):
         formated_prompted = USER_REQUIREMENTS_VALIDATION_PROMPT.format_prompt(
             USER_INPUT=workflow_state["user_input"]
         )
-        self.logger.debug(f"Formatted prompt: {formated_prompted.text}")
 
         response = self.llm.invoke(formated_prompted.text)
-        self.logger.debug(f"LLM response: {response}")
         response_content = response.content.strip()
-        self.logger.debug(f"Response content: {response_content}")
         
         # TODO: hardening parsing logic to extract JSON from response
         if "NOT_VALID" in response_content:
             workflow_state["is_valid_user_requirements"] = False
             workflow_state["user_requirements_validation_errors"] = response_content
             workflow_state["user_message"] = response_content
+            self.logger.warning(f"User requirements validation failed: {response_content}")
         elif "VALID" in response_content:
             workflow_state["is_valid_user_requirements"] = True
             workflow_state["user_requirements_validation_errors"] = ""
             workflow_state["user_message"] = "Requirements are valid and ready for Terraform generation."
+            self.logger.info("User requirements validated successfully")
         else:
             raise ValueError("Unexpected response format from LLM.")
             
