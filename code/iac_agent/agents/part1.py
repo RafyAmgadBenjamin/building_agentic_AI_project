@@ -11,6 +11,7 @@ from langchain.chat_models import init_chat_model
 from langchain_core.tools import tool
 from langchain_core.prompts import ChatPromptTemplate
 from langgraph.prebuilt import create_react_agent
+from opik.integrations.langchain import OpikTracer
 from datetime import datetime
 import os
 import json
@@ -91,7 +92,7 @@ class IacAgentChat(ChatInterface):
         builder.add_edge("finalize", END)
 
         self.graph = builder.compile()
-
+        opik_tracer = OpikTracer(graph=self.graph.get_graph(xray=True))
     @track(name="process_message", project_name="project_Iac_agent")
     def process_message(self, message: str, chat_history: Optional[List[Dict[str, str]]] = None):
         """Process a message using the tool-using agent with streaming.
